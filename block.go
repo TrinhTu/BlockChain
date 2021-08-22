@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"log"
 	"time"
@@ -10,20 +11,13 @@ import (
 type Block struct {
 	Hash          []byte
 	PrevBlockHash []byte
-	Data          []byte
+	Transactions  []*Transaction
 	Timestamp     int64
 	Nonce		  int
 }
 
-//func (b *Block) SetHash() {
-//	bTimeStamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-//	blockAsBytes := bytes.Join([][]byte{b.PrevBlockHash, b.Data, bTimeStamp}, []byte{})
-//	hash := sha256.Sum256(blockAsBytes)
-//	b.Hash = hash[:]
-//}
-
-func NewBlock(data string, prevBlockHash []byte) *Block {
-	block := &Block{[]byte{}, prevBlockHash, []byte(data), time.Now().Unix(), 0}
+func NewBlock(transactions []*Transaction, prevBlockHash []byte) *Block {
+	block := &Block{[]byte{}, prevBlockHash, transactions, time.Now().Unix(), 0}
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
 	block.Hash = hash[:]
@@ -31,8 +25,8 @@ func NewBlock(data string, prevBlockHash []byte) *Block {
 	return block
 }
 
-func NewGenesisBlock(starting string) *Block {
-	return NewBlock(starting, []byte{})
+func NewGenesisBlock(coinbase *Transaction) *Block {
+	return NewBlock([]*Transaction{coinbase}, []byte{})
 }
 
 func (b *Block) Serialize() []byte {
@@ -53,6 +47,17 @@ func DeserializeBlock(d []byte) *Block {
 		log.Panic(err)
 	}
 	return &block
+}
+
+func (b *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
+
+	for _, tx := range b.Transactions {
+		txHashes = append(txHashes, tx.ID)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+	return txHash[:]
 }
 
 
